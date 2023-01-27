@@ -18,8 +18,8 @@ package etcd
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
+	"etcd/pkg/tlsconfig"
 	"github.com/rs/zerolog"
 	"go.etcd.io/etcd/client/pkg/v3/srv"
 	"go.etcd.io/etcd/client/v3"
@@ -39,10 +39,18 @@ const (
 	DefaultTTL = 10
 )
 
+type Options struct {
+	Project     string
+	SrvDomain   string
+	ServiceName string
+	TLS         *tlsconfig.TLSConfig
+}
+
 // Client is a wrapper for the etcd client
 // that exposes the functionality needed by Architect
 type Client struct {
 	logger    *zerolog.Logger
+	options   *Options
 	client    *clientv3.Client
 	lease     *clientv3.LeaseGrantResponse
 	keepalive <-chan *clientv3.LeaseKeepAliveResponse
@@ -51,11 +59,11 @@ type Client struct {
 	wg        sync.WaitGroup
 }
 
-func New(project string, srvDomain string, serviceName string, tls *tls.Config, logger *zerolog.Logger, zapLogger *zap.Logger) (*Client, error) {
-	l := logger.With().Str(project, "ETCD").Logger()
-	l.Debug().Msgf("connecting to etcd with srv-domain '%s'", srvDomain)
+func New(options *Options, logger *zerolog.Logger, zapLogger *zap.Logger) (*Client, error) {
+	l := logger.With().Str(options.Project, "ETCD").Logger()
+	l.Debug().Msgf("connecting to etcd with srv-domain '%s' and service name '%s'", options.SrvDomain, options.ServiceName)
 
-	srvs, err := srv.GetClient("etcd-client", srvDomain, serviceName)
+	srvs, err := srv.GetClient("etcd-client", options.SrvDomain, options.ServiceName)
 	if err != nil {
 		return nil, err
 	}
@@ -75,9 +83,9 @@ func New(project string, srvDomain string, serviceName string, tls *tls.Config, 
 		DialTimeout:          time.Second * 5,
 		DialKeepAliveTime:    time.Second * 5,
 		DialKeepAliveTimeout: time.Second * 5,
-		TLS:                  tls,
+		TLS:                  options.TLS.Config(),
 		RejectOldCluster:     true,
-		Logger:               zapLogger.With(zap.String(project, "ETCD")),
+		Logger:               zapLogger.With(zap.String(options.Project, "ETCD")),
 	})
 	if err != nil {
 		return nil, err
@@ -99,6 +107,7 @@ func New(project string, srvDomain string, serviceName string, tls *tls.Config, 
 
 	e := &Client{
 		logger:    &l,
+		options:   options,
 		client:    client,
 		lease:     lease,
 		keepalive: keepalive,
@@ -117,6 +126,9 @@ func New(project string, srvDomain string, serviceName string, tls *tls.Config, 
 func (e *Client) Close() error {
 	e.logger.Debug().Msg("closing etcd client")
 	e.cancel()
+	if e.options.TLS != nil {
+		e.options.TLS.Stop()
+	}
 	defer e.wg.Wait()
 	return e.client.Close()
 }
