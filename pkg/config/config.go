@@ -27,19 +27,19 @@ import (
 )
 
 var (
-	ErrEtcdDiscoveryDomainRequired  = errors.New("etcd discovery domain is required")
-	ErrEtcdDiscoveryServiceRequired = errors.New("etcd discovery service is required")
-	ErrEtcdRootCARequired           = errors.New("etcd root ca is required")
-	ErrEtcdClientCertRequired       = errors.New("etcd client cert is required")
-	ErrEtcdClientKeyRequired        = errors.New("etcd client key is required")
+	ErrDiscoveryDomainRequired  = errors.New("discovery domain is required")
+	ErrDiscoveryServiceRequired = errors.New("discovery service is required")
+	ErrRootCARequired           = errors.New("root ca is required")
+	ErrClientCertRequired       = errors.New("client cert is required")
+	ErrClientKeyRequired        = errors.New("client key is required")
 )
 
 type Config struct {
-	EtcdDiscoveryDomain  string `yaml:"etcd_discovery_domain"`
-	EtcdDiscoveryService string `yaml:"etcd_discovery_service"`
-	EtcdRootCA           string `yaml:"etcd_root_ca"`
-	EtcdClientCert       string `yaml:"etcd_client_cert"`
-	EtcdClientKey        string `yaml:"etcd_client_key"`
+	DiscoveryDomain  string `yaml:"discovery_domain"`
+	DiscoveryService string `yaml:"discovery_service"`
+	RootCA           string `yaml:"root_ca"`
+	ClientCert       string `yaml:"client_cert"`
+	ClientKey        string `yaml:"client_key"`
 }
 
 func New() *Config {
@@ -47,35 +47,35 @@ func New() *Config {
 }
 
 func (c *Config) Validate() error {
-	if c.EtcdDiscoveryDomain == "" {
-		return ErrEtcdDiscoveryDomainRequired
+	if c.DiscoveryDomain == "" {
+		return ErrDiscoveryDomainRequired
 	}
 
-	if c.EtcdDiscoveryService == "" {
-		return ErrEtcdDiscoveryServiceRequired
+	if c.DiscoveryService == "" {
+		return ErrDiscoveryServiceRequired
 	}
 
-	if c.EtcdRootCA == "" {
-		return ErrEtcdRootCARequired
+	if c.RootCA == "" {
+		return ErrRootCARequired
 	}
 
-	if c.EtcdClientCert == "" {
-		return ErrEtcdClientCertRequired
+	if c.ClientCert == "" {
+		return ErrClientCertRequired
 	}
 
-	if c.EtcdClientKey == "" {
-		return ErrEtcdClientKeyRequired
+	if c.ClientKey == "" {
+		return ErrClientKeyRequired
 	}
 
 	return nil
 }
 
 func (c *Config) RootPersistentFlags(flags *pflag.FlagSet) {
-	flags.StringVar(&c.EtcdDiscoveryDomain, "etcd-discovery-domain", "", "The etcd discovery domain")
-	flags.StringVar(&c.EtcdDiscoveryService, "etcd-discovery-service", "", "The etcd discovery service")
-	flags.StringVar(&c.EtcdRootCA, "etcd-root-ca", "", "The etcd root ca")
-	flags.StringVar(&c.EtcdClientCert, "etcd-client-cert", "", "The etcd client cert")
-	flags.StringVar(&c.EtcdClientKey, "etcd-client-key", "", "The etcd client key")
+	flags.StringVar(&c.DiscoveryDomain, "etcd-discovery-domain", "", "The etcd discovery domain")
+	flags.StringVar(&c.DiscoveryService, "etcd-discovery-service", "", "The etcd discovery service")
+	flags.StringVar(&c.RootCA, "etcd-root-ca", "", "The etcd root ca")
+	flags.StringVar(&c.ClientCert, "etcd-client-cert", "", "The etcd client cert")
+	flags.StringVar(&c.ClientKey, "etcd-client-key", "", "The etcd client key")
 }
 
 func (c *Config) GlobalRequiredFlags(cmd *cobra.Command) error {
@@ -107,16 +107,16 @@ func (c *Config) GlobalRequiredFlags(cmd *cobra.Command) error {
 	return nil
 }
 
-func (c *Config) GenerateEtcdOptions(projectName string) (*etcd.Options, error) {
-	tlsConfig, err := tlsconfig.New(c.EtcdRootCA, c.EtcdClientCert, c.EtcdClientKey, time.Hour)
+func (c *Config) GenerateOptions(projectName string) (*etcd.Options, error) {
+	tlsConfig, err := tlsconfig.New(c.RootCA, c.ClientCert, c.ClientKey, time.Hour)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create tls config: %w", err)
 	}
 
 	return &etcd.Options{
 		Project:     projectName,
-		SrvDomain:   c.EtcdDiscoveryDomain,
-		ServiceName: c.EtcdDiscoveryService,
+		SrvDomain:   c.DiscoveryDomain,
+		ServiceName: c.DiscoveryService,
 		TLS:         tlsConfig,
 	}, nil
 }
