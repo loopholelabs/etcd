@@ -1,4 +1,4 @@
-module etcd
+module github.com/loopholelabs/etcd
 
 go 1.19
 
