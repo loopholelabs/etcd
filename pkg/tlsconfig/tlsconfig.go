@@ -44,7 +44,7 @@ type TLSConfig struct {
 	cancel context.CancelFunc
 }
 
-func NewTLSConfig(rootCA string, clientCert string, clientKey string, interval time.Duration) (*TLSConfig, error) {
+func New(rootCA string, clientCert string, clientKey string, interval time.Duration) (*TLSConfig, error) {
 	t := &TLSConfig{
 		rootCA:     rootCA,
 		clientCert: clientCert,
