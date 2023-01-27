@@ -107,14 +107,14 @@ func (c *Config) GlobalRequiredFlags(cmd *cobra.Command) error {
 	return nil
 }
 
-func (c *Config) GenerateOptions(projectName string) (*etcd.Options, error) {
+func (c *Config) GenerateOptions(logName string) (*etcd.Options, error) {
 	tlsConfig, err := tlsconfig.New(c.RootCA, c.ClientCert, c.ClientKey, time.Hour)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create tls config: %w", err)
 	}
 
 	return &etcd.Options{
-		Project:     projectName,
+		LogName:     logName,
 		SrvDomain:   c.DiscoveryDomain,
 		ServiceName: c.DiscoveryService,
 		TLS:         tlsConfig,

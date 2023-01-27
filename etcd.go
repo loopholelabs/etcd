@@ -40,7 +40,7 @@ const (
 )
 
 type Options struct {
-	Project     string
+	LogName     string
 	SrvDomain   string
 	ServiceName string
 	TLS         *tlsconfig.TLSConfig
@@ -60,7 +60,7 @@ type Client struct {
 }
 
 func New(options *Options, logger *zerolog.Logger, zapLogger *zap.Logger) (*Client, error) {
-	l := logger.With().Str(options.Project, "ETCD").Logger()
+	l := logger.With().Str(options.LogName, "ETCD").Logger()
 	l.Debug().Msgf("connecting to etcd with srv-domain '%s' and service name '%s'", options.SrvDomain, options.ServiceName)
 
 	srvs, err := srv.GetClient("etcd-client", options.SrvDomain, options.ServiceName)
@@ -85,7 +85,7 @@ func New(options *Options, logger *zerolog.Logger, zapLogger *zap.Logger) (*Clie
 		DialKeepAliveTimeout: time.Second * 5,
 		TLS:                  options.TLS.Config(),
 		RejectOldCluster:     true,
-		Logger:               zapLogger.With(zap.String(options.Project, "ETCD")),
+		Logger:               zapLogger.With(zap.String(options.LogName, "ETCD")),
 	})
 	if err != nil {
 		return nil, err
