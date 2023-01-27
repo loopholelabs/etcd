@@ -19,7 +19,7 @@ package etcd
 import (
 	"context"
 	"errors"
-	"etcd/pkg/tlsconfig"
+	"github.com/loopholelabs/etcd/pkg/tlsconfig"
 	"github.com/rs/zerolog"
 	"go.etcd.io/etcd/client/pkg/v3/srv"
 	"go.etcd.io/etcd/client/v3"

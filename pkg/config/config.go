@@ -18,9 +18,9 @@ package config
 
 import (
 	"errors"
-	"etcd/pkg/etcd"
-	"etcd/pkg/tlsconfig"
 	"fmt"
+	"github.com/loopholelabs/etcd"
+	"github.com/loopholelabs/etcd/pkg/tlsconfig"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"time"
