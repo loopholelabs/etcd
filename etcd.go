@@ -47,7 +47,6 @@ type Options struct {
 }
 
 // Client is a wrapper for the etcd client
-// that exposes the functionality needed by Architect
 type Client struct {
 	logger    *zerolog.Logger
 	options   *Options
