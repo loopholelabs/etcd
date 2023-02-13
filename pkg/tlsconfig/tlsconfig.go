@@ -21,6 +21,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"math/rand"
 	"os"
 	"sync"
 	"time"
@@ -29,10 +30,10 @@ import (
 // TLSConfig contains a set of TLS configuration options and is able to reload a certificate
 // and the Root CAs associated with it on a given interval, or on demand.
 type TLSConfig struct {
-	rootCA     string
-	clientCert string
-	clientKey  string
-	interval   time.Duration
+	rootCAPath     string
+	clientCertPath string
+	clientKeyPath  string
+	interval       time.Duration
 
 	cert *tls.Certificate
 
@@ -46,10 +47,10 @@ type TLSConfig struct {
 
 func New(rootCA string, clientCert string, clientKey string, interval time.Duration) (*TLSConfig, error) {
 	t := &TLSConfig{
-		rootCA:     rootCA,
-		clientCert: clientCert,
-		clientKey:  clientKey,
-		interval:   interval,
+		rootCAPath:     rootCA,
+		clientCertPath: clientCert,
+		clientKeyPath:  clientKey,
+		interval:       interval,
 	}
 
 	t.ctx, t.cancel = context.WithCancel(context.Background())
@@ -99,8 +100,8 @@ func (t *TLSConfig) rotate() {
 		select {
 		case <-t.ctx.Done():
 			return
-		case <-time.After(t.interval):
-			cert, err := tls.LoadX509KeyPair(t.clientCert, t.clientKey)
+		case <-time.After(t.interval + time.Second*(time.Duration(rand.Intn(300)))):
+			cert, err := tls.LoadX509KeyPair(t.clientCertPath, t.clientKeyPath)
 			if err != nil {
 				t.mu.Lock()
 				t.err = fmt.Errorf("failed to load client certificate and key: %w", err)
@@ -108,19 +109,8 @@ func (t *TLSConfig) rotate() {
 				continue
 			}
 
-			rootPool := x509.NewCertPool()
-			rootCAPEM, err := os.ReadFile(t.rootCA)
-			if err != nil {
-				t.mu.Lock()
-				t.err = fmt.Errorf("failed to read root CA: %w", err)
-				t.mu.Unlock()
-				continue
-			}
-			rootPool.AppendCertsFromPEM(rootCAPEM)
-
 			t.mu.Lock()
 			t.cert = &cert
-			t.config.RootCAs = rootPool
 			t.err = nil
 			t.mu.Unlock()
 		}
