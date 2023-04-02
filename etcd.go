@@ -31,6 +31,7 @@ import (
 
 var (
 	ErrSetDelete           = errors.New("set-delete failed")
+	ErrSetIfNotExist       = errors.New("set-if-not-exists failed")
 	ErrInvalidBatchRequest = errors.New("invalid batch request")
 	ErrBatchRequestFailed  = errors.New("batch request failed")
 )
@@ -160,6 +161,33 @@ func (e *Client) SetExpiry(ctx context.Context, key string, value string, ttl ti
 	if err != nil {
 		_, _ = e.client.Revoke(ctx, lease.ID)
 		return nil, err
+	}
+	return resp, nil
+}
+
+func (e *Client) SetIfNotExist(ctx context.Context, key string, value string) (*clientv3.TxnResponse, error) {
+	resp, err := e.client.Txn(ctx).If(clientv3.Compare(clientv3.Version(key), "=", 0)).Then(clientv3.OpPut(key, value)).Commit()
+	if err != nil {
+		return nil, err
+	}
+	if !resp.Succeeded {
+		return nil, ErrSetIfNotExist
+	}
+	return resp, nil
+}
+
+func (e *Client) SetIfNotExistExpiry(ctx context.Context, key string, value string, ttl time.Duration) (*clientv3.TxnResponse, error) {
+	lease, err := e.client.Grant(ctx, int64(ttl.Seconds()))
+	if err != nil {
+		return nil, err
+	}
+	resp, err := e.client.Txn(ctx).If(clientv3.Compare(clientv3.Version(key), "=", 0)).Then(clientv3.OpPut(key, value, clientv3.WithLease(lease.ID))).Commit()
+	if err != nil {
+		_, _ = e.client.Revoke(ctx, lease.ID)
+		return nil, err
+	}
+	if !resp.Succeeded {
+		return nil, ErrSetIfNotExist
 	}
 	return resp, nil
 }
