@@ -79,10 +79,10 @@ func New(options *Options, logger *zerolog.Logger, zapLogger *zap.Logger) (*Clie
 
 	client, err := clientv3.New(clientv3.Config{
 		Endpoints:            endpoints,
-		AutoSyncInterval:     time.Second * 10,
-		DialTimeout:          time.Second * 5,
-		DialKeepAliveTime:    time.Second * 5,
-		DialKeepAliveTimeout: time.Second * 5,
+		AutoSyncInterval:     time.Second * DefaultTTL,
+		DialTimeout:          time.Second * DefaultTTL,
+		DialKeepAliveTime:    time.Second * DefaultTTL,
+		DialKeepAliveTimeout: time.Second * DefaultTTL,
 		TLS:                  options.TLS.Config(),
 		RejectOldCluster:     true,
 		Logger:               zapLogger.With(zap.String(options.LogName, "ETCD")),
@@ -130,7 +130,11 @@ func (e *Client) Close() error {
 		e.options.TLS.Stop()
 	}
 	defer e.wg.Wait()
-	return e.client.Close()
+	err := e.client.Close()
+	if err != nil && !errors.Is(err, context.Canceled) {
+		return err
+	}
+	return nil
 }
 
 func (e *Client) Set(ctx context.Context, key string, value string) (*clientv3.PutResponse, error) {
