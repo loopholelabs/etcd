@@ -47,19 +47,21 @@ type Options struct {
 	TLS         *tlsconfig.TLSConfig
 }
 
-// Client is a wrapper for the etcd client
-type Client struct {
-	logger    *zerolog.Logger
-	options   *Options
+// ETCD is a wrapper for the etcd client
+type ETCD struct {
+	logger  *zerolog.Logger
+	options *Options
+
 	client    *clientv3.Client
 	lease     *clientv3.LeaseGrantResponse
 	keepalive <-chan *clientv3.LeaseKeepAliveResponse
-	context   context.Context
-	cancel    context.CancelFunc
-	wg        sync.WaitGroup
+
+	ctx    context.Context
+	cancel context.CancelFunc
+	wg     sync.WaitGroup
 }
 
-func New(options *Options, logger *zerolog.Logger, zapLogger *zap.Logger) (*Client, error) {
+func New(options *Options, logger *zerolog.Logger, zapLogger *zap.Logger) (*ETCD, error) {
 	l := logger.With().Str(options.LogName, "ETCD").Logger()
 	l.Debug().Msgf("connecting to etcd with srv-domain '%s' and service name '%s'", options.SrvDomain, options.ServiceName)
 
@@ -105,13 +107,13 @@ func New(options *Options, logger *zerolog.Logger, zapLogger *zap.Logger) (*Clie
 		return nil, err
 	}
 
-	e := &Client{
+	e := &ETCD{
 		logger:    &l,
 		options:   options,
 		client:    client,
 		lease:     lease,
 		keepalive: keepalive,
-		context:   ctx,
+		ctx:       ctx,
 		cancel:    cancel,
 	}
 
@@ -123,7 +125,7 @@ func New(options *Options, logger *zerolog.Logger, zapLogger *zap.Logger) (*Clie
 	return e, nil
 }
 
-func (e *Client) Close() error {
+func (e *ETCD) Close() error {
 	e.logger.Debug().Msg("closing etcd client")
 	e.cancel()
 	if e.options.TLS != nil {
@@ -137,11 +139,11 @@ func (e *Client) Close() error {
 	return nil
 }
 
-func (e *Client) Set(ctx context.Context, key string, value string) (*clientv3.PutResponse, error) {
+func (e *ETCD) Set(ctx context.Context, key string, value string) (*clientv3.PutResponse, error) {
 	return e.client.Put(ctx, key, value)
 }
 
-func (e *Client) SetDelete(ctx context.Context, key string, value string, delete string) error {
+func (e *ETCD) SetDelete(ctx context.Context, key string, value string, delete string) error {
 	resp, err := e.client.Txn(ctx).Then(clientv3.OpPut(key, value), clientv3.OpDelete(delete)).Commit()
 	if err != nil {
 		return err
@@ -152,11 +154,11 @@ func (e *Client) SetDelete(ctx context.Context, key string, value string, delete
 	return nil
 }
 
-func (e *Client) SetKeepAlive(ctx context.Context, key string, value string) (*clientv3.PutResponse, error) {
+func (e *ETCD) SetKeepAlive(ctx context.Context, key string, value string) (*clientv3.PutResponse, error) {
 	return e.client.Put(ctx, key, value, clientv3.WithLease(e.lease.ID))
 }
 
-func (e *Client) SetExpiry(ctx context.Context, key string, value string, ttl time.Duration) (*clientv3.PutResponse, error) {
+func (e *ETCD) SetExpiry(ctx context.Context, key string, value string, ttl time.Duration) (*clientv3.PutResponse, error) {
 	lease, err := e.client.Grant(ctx, int64(ttl.Seconds()))
 	if err != nil {
 		return nil, err
@@ -169,7 +171,7 @@ func (e *Client) SetExpiry(ctx context.Context, key string, value string, ttl ti
 	return resp, nil
 }
 
-func (e *Client) SetIfNotExist(ctx context.Context, key string, value string) (*clientv3.TxnResponse, error) {
+func (e *ETCD) SetIfNotExist(ctx context.Context, key string, value string) (*clientv3.TxnResponse, error) {
 	resp, err := e.client.Txn(ctx).If(clientv3.Compare(clientv3.Version(key), "=", 0)).Then(clientv3.OpPut(key, value)).Commit()
 	if err != nil {
 		return nil, err
@@ -180,7 +182,7 @@ func (e *Client) SetIfNotExist(ctx context.Context, key string, value string) (*
 	return resp, nil
 }
 
-func (e *Client) SetIfNotExistExpiry(ctx context.Context, key string, value string, ttl time.Duration) (*clientv3.TxnResponse, error) {
+func (e *ETCD) SetIfNotExistExpiry(ctx context.Context, key string, value string, ttl time.Duration) (*clientv3.TxnResponse, error) {
 	lease, err := e.client.Grant(ctx, int64(ttl.Seconds()))
 	if err != nil {
 		return nil, err
@@ -196,19 +198,19 @@ func (e *Client) SetIfNotExistExpiry(ctx context.Context, key string, value stri
 	return resp, nil
 }
 
-func (e *Client) Get(ctx context.Context, key string) (*clientv3.GetResponse, error) {
+func (e *ETCD) Get(ctx context.Context, key string) (*clientv3.GetResponse, error) {
 	return e.client.Get(ctx, key)
 }
 
-func (e *Client) GetLimit(ctx context.Context, key string, limit int64) (*clientv3.GetResponse, error) {
+func (e *ETCD) GetLimit(ctx context.Context, key string, limit int64) (*clientv3.GetResponse, error) {
 	return e.client.Get(ctx, key, clientv3.WithLimit(limit))
 }
 
-func (e *Client) GetPrefix(ctx context.Context, prefix string) (*clientv3.GetResponse, error) {
+func (e *ETCD) GetPrefix(ctx context.Context, prefix string) (*clientv3.GetResponse, error) {
 	return e.client.Get(ctx, prefix, clientv3.WithPrefix())
 }
 
-func (e *Client) GetBatch(ctx context.Context, keys ...string) (*clientv3.TxnResponse, error) {
+func (e *ETCD) GetBatch(ctx context.Context, keys ...string) (*clientv3.TxnResponse, error) {
 	if len(keys) == 0 {
 		return nil, ErrInvalidBatchRequest
 	}
@@ -231,19 +233,19 @@ func (e *Client) GetBatch(ctx context.Context, keys ...string) (*clientv3.TxnRes
 	return resp, nil
 }
 
-func (e *Client) Delete(ctx context.Context, key string) (*clientv3.DeleteResponse, error) {
+func (e *ETCD) Delete(ctx context.Context, key string) (*clientv3.DeleteResponse, error) {
 	return e.client.Delete(ctx, key)
 }
 
-func (e *Client) Watch(ctx context.Context, key string) clientv3.WatchChan {
+func (e *ETCD) Watch(ctx context.Context, key string) clientv3.WatchChan {
 	return e.client.Watch(ctx, key)
 }
 
-func (e *Client) WatchPrefix(ctx context.Context, prefix string) clientv3.WatchChan {
+func (e *ETCD) WatchPrefix(ctx context.Context, prefix string) clientv3.WatchChan {
 	return e.client.Watch(ctx, prefix, clientv3.WithPrefix())
 }
 
-func (e *Client) consumeKeepAlive() {
+func (e *ETCD) consumeKeepAlive() {
 	defer e.wg.Done()
 	for {
 		select {
@@ -253,7 +255,7 @@ func (e *Client) consumeKeepAlive() {
 				return
 			}
 			e.logger.Trace().Msgf("keepalive received for ID %d", r.ID)
-		case <-e.context.Done():
+		case <-e.ctx.Done():
 			e.logger.Debug().Msg("closing keepalive consumer")
 			return
 		}
