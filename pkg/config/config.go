@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"github.com/loopholelabs/etcd"
 	"github.com/loopholelabs/etcd/pkg/tlsconfig"
-	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"time"
 )
@@ -34,7 +33,12 @@ var (
 	ErrClientKeyRequired        = errors.New("client key is required")
 )
 
+const (
+	DefaultDisabled = false
+)
+
 type Config struct {
+	Disabled         bool   `yaml:"disabled"`
 	DiscoveryDomain  string `yaml:"discovery_domain"`
 	DiscoveryService string `yaml:"discovery_service"`
 	RootCA           string `yaml:"root_ca"`
@@ -43,30 +47,33 @@ type Config struct {
 }
 
 func New() *Config {
-	return new(Config)
+	return &Config{
+		Disabled: DefaultDisabled,
+	}
 }
 
 func (c *Config) Validate() error {
-	if c.DiscoveryDomain == "" {
-		return ErrDiscoveryDomainRequired
-	}
+	if !c.Disabled {
+		if c.DiscoveryDomain == "" {
+			return ErrDiscoveryDomainRequired
+		}
 
-	if c.DiscoveryService == "" {
-		return ErrDiscoveryServiceRequired
-	}
+		if c.DiscoveryService == "" {
+			return ErrDiscoveryServiceRequired
+		}
 
-	if c.RootCA == "" {
-		return ErrRootCARequired
-	}
+		if c.RootCA == "" {
+			return ErrRootCARequired
+		}
 
-	if c.ClientCert == "" {
-		return ErrClientCertRequired
-	}
+		if c.ClientCert == "" {
+			return ErrClientCertRequired
+		}
 
-	if c.ClientKey == "" {
-		return ErrClientKeyRequired
+		if c.ClientKey == "" {
+			return ErrClientKeyRequired
+		}
 	}
-
 	return nil
 }
 
@@ -78,35 +85,6 @@ func (c *Config) RootPersistentFlags(flags *pflag.FlagSet) {
 	flags.StringVar(&c.ClientKey, "etcd-client-key", "", "The etcd client key")
 }
 
-func (c *Config) GlobalRequiredFlags(cmd *cobra.Command) error {
-	err := cmd.MarkFlagRequired("etcd-discovery-domain")
-	if err != nil {
-		return err
-	}
-
-	err = cmd.MarkFlagRequired("etcd-discovery-service")
-	if err != nil {
-		return err
-	}
-
-	err = cmd.MarkFlagRequired("etcd-root-ca")
-	if err != nil {
-		return err
-	}
-
-	err = cmd.MarkFlagRequired("etcd-client-cert")
-	if err != nil {
-		return err
-	}
-
-	err = cmd.MarkFlagRequired("etcd-client-key")
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
 func (c *Config) GenerateOptions(logName string) (*etcd.Options, error) {
 	tlsConfig, err := tlsconfig.New(c.RootCA, c.ClientCert, c.ClientKey, time.Hour)
 	if err != nil {
@@ -115,6 +93,7 @@ func (c *Config) GenerateOptions(logName string) (*etcd.Options, error) {
 
 	return &etcd.Options{
 		LogName:     logName,
+		Disabled:    c.Disabled,
 		SrvDomain:   c.DiscoveryDomain,
 		ServiceName: c.DiscoveryService,
 		TLS:         tlsConfig,

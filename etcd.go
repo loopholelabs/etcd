@@ -30,6 +30,7 @@ import (
 )
 
 var (
+	ErrDisabled            = errors.New("etcd is disabled")
 	ErrSetDelete           = errors.New("set-delete failed")
 	ErrSetIfNotExist       = errors.New("set-if-not-exists failed")
 	ErrInvalidBatchRequest = errors.New("invalid batch request")
@@ -42,6 +43,7 @@ const (
 
 type Options struct {
 	LogName     string
+	Disabled    bool
 	SrvDomain   string
 	ServiceName string
 	TLS         *tlsconfig.TLSConfig
@@ -61,10 +63,14 @@ type ETCD struct {
 	wg     sync.WaitGroup
 }
 
-func New(options *Options, logger *zerolog.Logger, zapLogger *zap.Logger) (*ETCD, error) {
+func New(options *Options, zapLogger *zap.Logger, logger *zerolog.Logger) (*ETCD, error) {
 	l := logger.With().Str(options.LogName, "ETCD").Logger()
-	l.Debug().Msgf("connecting to etcd with srv-domain '%s' and service name '%s'", options.SrvDomain, options.ServiceName)
+	if options.Disabled {
+		l.Warn().Msg("disabled")
+		return nil, ErrDisabled
+	}
 
+	l.Debug().Msgf("connecting to etcd with srv-domain '%s' and service name '%s'", options.SrvDomain, options.ServiceName)
 	srvs, err := srv.GetClient("etcd-client", options.SrvDomain, options.ServiceName)
 	if err != nil {
 		return nil, err
