@@ -78,6 +78,7 @@ func (c *Config) Validate() error {
 }
 
 func (c *Config) RootPersistentFlags(flags *pflag.FlagSet) {
+	flags.BoolVar(&c.Disabled, "etcd-disabled", DefaultDisabled, "Disable etcd")
 	flags.StringVar(&c.DiscoveryDomain, "etcd-discovery-domain", "", "The etcd discovery domain")
 	flags.StringVar(&c.DiscoveryService, "etcd-discovery-service", "", "The etcd discovery service")
 	flags.StringVar(&c.RootCA, "etcd-root-ca", "", "The etcd root ca")
