@@ -18,11 +18,8 @@ package config
 
 import (
 	"errors"
-	"fmt"
 	"github.com/loopholelabs/etcd"
-	"github.com/loopholelabs/etcd/pkg/tlsconfig"
 	"github.com/spf13/pflag"
-	"time"
 )
 
 var (
@@ -87,16 +84,13 @@ func (c *Config) RootPersistentFlags(flags *pflag.FlagSet) {
 }
 
 func (c *Config) GenerateOptions(logName string) (*etcd.Options, error) {
-	tlsConfig, err := tlsconfig.New(c.RootCA, c.ClientCert, c.ClientKey, time.Hour)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create tls config: %w", err)
-	}
-
 	return &etcd.Options{
 		LogName:     logName,
 		Disabled:    c.Disabled,
 		SrvDomain:   c.DiscoveryDomain,
 		ServiceName: c.DiscoveryService,
-		TLS:         tlsConfig,
+		RootCA:      c.RootCA,
+		ClientCert:  c.ClientCert,
+		ClientKey:   c.ClientKey,
 	}, nil
 }

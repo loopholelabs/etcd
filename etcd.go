@@ -19,7 +19,7 @@ package etcd
 import (
 	"context"
 	"errors"
-	"github.com/loopholelabs/etcd/pkg/tlsconfig"
+	"github.com/loopholelabs/tls/pkg/client"
 	"github.com/rs/zerolog"
 	"go.etcd.io/etcd/client/pkg/v3/srv"
 	"go.etcd.io/etcd/client/v3"
@@ -46,7 +46,9 @@ type Options struct {
 	Disabled    bool
 	SrvDomain   string
 	ServiceName string
-	TLS         *tlsconfig.TLSConfig
+	RootCA      string
+	ClientCert  string
+	ClientKey   string
 }
 
 // ETCD is a wrapper for the etcd client
@@ -54,6 +56,7 @@ type ETCD struct {
 	logger  *zerolog.Logger
 	options *Options
 
+	tlsConfig *client.Config
 	client    *clientv3.Client
 	lease     *clientv3.LeaseGrantResponse
 	keepalive <-chan *clientv3.LeaseKeepAliveResponse
@@ -68,6 +71,12 @@ func New(options *Options, zapLogger *zap.Logger, logger *zerolog.Logger) (*ETCD
 	if options.Disabled {
 		l.Warn().Msg("disabled")
 		return nil, ErrDisabled
+	}
+
+	pathLoader := client.NewPathLoader(options.RootCA, options.ClientCert, options.ClientKey)
+	tlsConfig, err := client.NewConfig(pathLoader, time.Hour)
+	if err != nil {
+		return nil, err
 	}
 
 	l.Debug().Msgf("connecting to etcd with srv-domain '%s' and service name '%s'", options.SrvDomain, options.ServiceName)
@@ -91,7 +100,7 @@ func New(options *Options, zapLogger *zap.Logger, logger *zerolog.Logger) (*ETCD
 		DialTimeout:          time.Second * DefaultTTL,
 		DialKeepAliveTime:    time.Second * DefaultTTL,
 		DialKeepAliveTimeout: time.Second * DefaultTTL,
-		TLS:                  options.TLS.Config(),
+		TLS:                  tlsConfig.Config(),
 		RejectOldCluster:     true,
 		Logger:               zapLogger.With(zap.String(options.LogName, "ETCD")),
 	})
@@ -117,6 +126,7 @@ func New(options *Options, zapLogger *zap.Logger, logger *zerolog.Logger) (*ETCD
 		logger:    &l,
 		options:   options,
 		client:    client,
+		tlsConfig: tlsConfig,
 		lease:     lease,
 		keepalive: keepalive,
 		ctx:       ctx,
@@ -134,8 +144,8 @@ func New(options *Options, zapLogger *zap.Logger, logger *zerolog.Logger) (*ETCD
 func (e *ETCD) Close() error {
 	e.logger.Debug().Msg("closing etcd client")
 	e.cancel()
-	if e.options.TLS != nil {
-		e.options.TLS.Stop()
+	if e.tlsConfig != nil {
+		e.tlsConfig.Stop()
 	}
 	defer e.wg.Wait()
 	err := e.client.Close()
