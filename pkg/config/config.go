@@ -35,12 +35,12 @@ const (
 )
 
 type Config struct {
-	Disabled         bool   `yaml:"disabled"`
-	DiscoveryDomain  string `yaml:"discovery_domain"`
-	DiscoveryService string `yaml:"discovery_service"`
-	RootCA           string `yaml:"root_ca"`
-	ClientCert       string `yaml:"client_cert"`
-	ClientKey        string `yaml:"client_key"`
+	Disabled         bool   `mapstructure:"disabled"`
+	DiscoveryDomain  string `mapstructure:"discovery_domain"`
+	DiscoveryService string `mapstructure:"discovery_service"`
+	RootCA           string `mapstructure:"root_ca"`
+	ClientCert       string `mapstructure:"client_cert"`
+	ClientKey        string `mapstructure:"client_key"`
 }
 
 func New() *Config {
