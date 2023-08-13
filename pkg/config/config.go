@@ -25,9 +25,6 @@ import (
 var (
 	ErrDiscoveryDomainRequired  = errors.New("discovery domain is required")
 	ErrDiscoveryServiceRequired = errors.New("discovery service is required")
-	ErrRootCARequired           = errors.New("root ca is required")
-	ErrClientCertRequired       = errors.New("client cert is required")
-	ErrClientKeyRequired        = errors.New("client key is required")
 )
 
 const (
@@ -38,9 +35,6 @@ type Config struct {
 	Disabled         bool   `mapstructure:"disabled"`
 	DiscoveryDomain  string `mapstructure:"discovery_domain"`
 	DiscoveryService string `mapstructure:"discovery_service"`
-	RootCA           string `mapstructure:"root_ca"`
-	ClientCert       string `mapstructure:"client_cert"`
-	ClientKey        string `mapstructure:"client_key"`
 }
 
 func New() *Config {
@@ -59,17 +53,6 @@ func (c *Config) Validate() error {
 			return ErrDiscoveryServiceRequired
 		}
 
-		if c.RootCA == "" {
-			return ErrRootCARequired
-		}
-
-		if c.ClientCert == "" {
-			return ErrClientCertRequired
-		}
-
-		if c.ClientKey == "" {
-			return ErrClientKeyRequired
-		}
 	}
 	return nil
 }
@@ -78,9 +61,6 @@ func (c *Config) RootPersistentFlags(flags *pflag.FlagSet) {
 	flags.BoolVar(&c.Disabled, "etcd-disabled", DefaultDisabled, "Disable etcd")
 	flags.StringVar(&c.DiscoveryDomain, "etcd-discovery-domain", "", "The etcd discovery domain")
 	flags.StringVar(&c.DiscoveryService, "etcd-discovery-service", "", "The etcd discovery service")
-	flags.StringVar(&c.RootCA, "etcd-root-ca", "", "The etcd root ca")
-	flags.StringVar(&c.ClientCert, "etcd-client-cert", "", "The etcd client cert")
-	flags.StringVar(&c.ClientKey, "etcd-client-key", "", "The etcd client key")
 }
 
 func (c *Config) GenerateOptions(logName string) (*etcd.Options, error) {
@@ -89,8 +69,5 @@ func (c *Config) GenerateOptions(logName string) (*etcd.Options, error) {
 		Disabled:    c.Disabled,
 		SrvDomain:   c.DiscoveryDomain,
 		ServiceName: c.DiscoveryService,
-		RootCA:      c.RootCA,
-		ClientCert:  c.ClientCert,
-		ClientKey:   c.ClientKey,
 	}, nil
 }

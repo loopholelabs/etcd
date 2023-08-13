@@ -19,7 +19,8 @@ package etcd
 import (
 	"context"
 	"errors"
-	"github.com/loopholelabs/tls/pkg/client"
+	"github.com/loopholelabs/tls/pkg/config"
+	"github.com/loopholelabs/tls/pkg/loader"
 	"github.com/rs/zerolog"
 	"go.etcd.io/etcd/client/pkg/v3/srv"
 	"go.etcd.io/etcd/client/v3"
@@ -46,9 +47,6 @@ type Options struct {
 	Disabled    bool
 	SrvDomain   string
 	ServiceName string
-	RootCA      string
-	ClientCert  string
-	ClientKey   string
 }
 
 // ETCD is a wrapper for the etcd client
@@ -56,7 +54,7 @@ type ETCD struct {
 	logger  *zerolog.Logger
 	options *Options
 
-	tlsConfig *client.Config
+	tlsConfig *config.Client
 	client    *clientv3.Client
 	lease     *clientv3.LeaseGrantResponse
 	keepalive <-chan *clientv3.LeaseKeepAliveResponse
@@ -66,15 +64,14 @@ type ETCD struct {
 	wg     sync.WaitGroup
 }
 
-func New(options *Options, zapLogger *zap.Logger, logger *zerolog.Logger) (*ETCD, error) {
+func New(options *Options, loader loader.Loader, zapLogger *zap.Logger, logger *zerolog.Logger) (*ETCD, error) {
 	l := logger.With().Str(options.LogName, "ETCD").Logger()
 	if options.Disabled {
 		l.Warn().Msg("disabled")
 		return nil, ErrDisabled
 	}
 
-	pathLoader := client.NewPathLoader(options.RootCA, options.ClientCert, options.ClientKey)
-	tlsConfig, err := client.NewConfig(pathLoader, time.Hour)
+	tlsConfig, err := config.NewClient(loader, time.Hour)
 	if err != nil {
 		return nil, err
 	}

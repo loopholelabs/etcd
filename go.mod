@@ -3,7 +3,7 @@ module github.com/loopholelabs/etcd
 go 1.19
 
 require (
-	github.com/loopholelabs/tls v0.1.1
+	github.com/loopholelabs/tls v0.1.2
 	github.com/rs/zerolog v1.29.1
 	github.com/spf13/pflag v1.0.5
 	go.etcd.io/etcd/client/pkg/v3 v3.5.9
